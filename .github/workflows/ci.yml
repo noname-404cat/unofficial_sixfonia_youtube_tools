@@ -1,0 +1,58 @@
+name: CI
+
+# PR と main への push で、テストと両アプリのビルドを回す。
+#
+# これが無かったため、Dependabot の PR をマージした時点で
+# react-window がメジャーごと上がり、未視聴チェックのビルドが
+# 壊れたまま気づけない状態になっていた。
+# 人が毎回ビルドを覚えておく運用にしない。
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python:
+    name: Python (pytest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e ".[dev,web]"
+      - run: pytest tests -q
+
+  web:
+    name: Next.js (${{ matrix.app }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [web-arrivals, web-viewer]
+    defaults:
+      run:
+        working-directory: apps/${{ matrix.app }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+          cache-dependency-path: apps/${{ matrix.app }}/pnpm-lock.yaml
+      # ロックファイルどおりに入れる。Dependabot が上げた版で
+      # 実際にビルドが通るかを見るのが目的なので --frozen-lockfile を使う。
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build

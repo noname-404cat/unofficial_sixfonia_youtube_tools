@@ -115,6 +115,12 @@ pytest tests -q
 個人の視聴履歴はコミットできないため、実データで確認した挙動を
 `tests/fixtures/` の匿名フィクスチャで固定している。
 
+### CI
+
+`.github/workflows/ci.yml` が PR と `main` への push で、pytest と
+**両 Next.js アプリの `pnpm build`** を回す。Dependabot の PR にもチェックが付くので、
+依存の更新でビルドが壊れたらマージ前に気づける。
+
 ## 未対応
 
 - **再生数**は BigQuery から日次バッチで抽出して配る予定。未実装で、取得口

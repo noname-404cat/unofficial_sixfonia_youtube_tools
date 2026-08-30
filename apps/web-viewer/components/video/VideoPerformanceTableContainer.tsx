@@ -3,7 +3,7 @@
 import { memo, useMemo } from "react"
 import type { VideoAnalysis, ProcessedData } from "@/types/video"
 import { useVideoTableState } from "@/hooks/useVideoTableState"
-import { VirtualizedTable } from "./VideoTable/VirtualizedTable"
+import { VideoTable } from "./VideoTable"
 import { VideoTableFilters } from "./VideoTableFilters"
 
 interface VideoPerformanceTableContainerProps {
@@ -67,15 +67,14 @@ export const VideoPerformanceTableContainer = memo<VideoPerformanceTableContaine
           onWatchCountChange={handleWatchCountChange}
         />
 
-        <VirtualizedTable
+        <VideoTable
           videos={sortedVideos}
           processedData={processedData}
           sortField={sortState.field}
           sortDirection={sortState.direction}
           onSort={handleSort}
           watchCountByVideoId={watchCountByVideoId}
-          itemHeight={80}
-          overscanCount={10}
+          maxRows={50}
         />
       </div>
     )

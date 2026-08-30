@@ -11,7 +11,7 @@ import {
   processCSVData,
   extractWatchedVideoIds,
 } from "@/lib/calc"
-import VirtualizedVideoTable from "@/components/video/VirtualizedVideoTable"
+import PagedVideoTable from "@/components/video/PagedVideoTable"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Check, Search, Eye, BarChart, Info, ChevronUp, ChevronDown, Users } from "lucide-react"
@@ -1484,7 +1484,7 @@ export default function CSVUploader() {
 
                   {/* テーブルコンポーネント */}
                   {sortedVideoIdList.length > 0 ? (
-                    <VirtualizedVideoTable
+                    <PagedVideoTable
                       videos={sortedVideoIdList}
                       processedData={processedData}
                       sortField={sortField}
@@ -1500,11 +1500,6 @@ export default function CSVUploader() {
                     </Alert>
                   )}
 
-                  {sortedVideoIdList.length > 20 && (
-                    <div className="text-center text-sm text-muted-foreground">
-                      {sortedVideoIdList.length}本中、上位20本を表示しています
-                    </div>
-                  )}
                 </>
               )}
             </CardContent>
