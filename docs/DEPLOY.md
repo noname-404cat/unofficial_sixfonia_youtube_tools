@@ -71,6 +71,10 @@ SNAPSHOT_URL = "https://<プロジェクト名>.vercel.app/data/videos.json"
 依存は直下の `requirements.txt`、日本語フォントは直下の `packages.txt`（`fonts-ipafont-gothic`）
 から入る。**どちらもリポジトリ直下に無いと読まれない。**
 
+> `packages.txt` に**コメントを書いてはいけない**。中身がそのまま `apt-get` に渡されるため、
+> `#` で始まる行もパッケージ名として扱われ `E: Unable to locate package #` で失敗する。
+> パッケージ名だけを1行ずつ書く。`requirements.txt` は pip が読むのでコメント可。
+
 > `SNAPSHOT_URL` は未設定でも動く。その場合コメントのチャンネル判定を
 > 視聴履歴からの推定で行うため、精度が落ちる（削除・非公開動画を取りこぼす）。
 
