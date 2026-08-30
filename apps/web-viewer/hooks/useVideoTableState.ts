@@ -129,8 +129,8 @@ export function useVideoTableState({ videoAnalysis, videoMetadata, watchCountByV
           compareValue = dateA - dateB
         } else if (field === "latestViewCount") {
           const getLatestViewCount = (video: VideoAnalysis): number => {
-            const days = Object.keys(video.dailyMetrics).sort()
-            return days.length > 0 ? video.dailyMetrics[days[days.length - 1]].viewCount : 0
+            const days = Object.keys(video.dailyMetrics ?? {}).sort()
+            return days.length > 0 ? video.dailyMetrics?.[days[days.length - 1]]?.viewCount ?? 0 : 0
           }
           const viewCountA = getLatestViewCount(videoA)
           const viewCountB = getLatestViewCount(videoB)
@@ -147,17 +147,17 @@ export function useVideoTableState({ videoAnalysis, videoMetadata, watchCountByV
           compareValue = videoA.rank - videoB.rank
         } else if (field.startsWith("day")) {
           const getDailyViewCount = (video: VideoAnalysis, dayLabel: string): number => {
-            const days = Object.keys(video.dailyMetrics).sort((a, b) => {
+            const days = Object.keys(video.dailyMetrics ?? {}).sort((a, b) => {
               const numA = Number(a.replace("day", ""))
               const numB = Number(b.replace("day", ""))
               return numA - numB
             })
             const dayIndex = days.indexOf(dayLabel)
-            if (dayIndex < 0 || !video.dailyMetrics[dayLabel] || dayIndex === 0) {
+            if (dayIndex < 0 || !video.dailyMetrics?.[dayLabel] || dayIndex === 0) {
               return Number.NEGATIVE_INFINITY
             }
             const prevDay = days[dayIndex - 1]
-            return video.dailyMetrics[dayLabel].viewCount - video.dailyMetrics[prevDay].viewCount
+            return (video.dailyMetrics?.[dayLabel]?.viewCount ?? 0) - (video.dailyMetrics?.[prevDay]?.viewCount ?? 0)
           }
 
           const dayViewA = getDailyViewCount(videoA, field)

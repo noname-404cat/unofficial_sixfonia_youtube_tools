@@ -4,7 +4,7 @@
 // 変換していたが、そのためだけに API キーをクライアントへ配る必要があった。
 // マスタは日次バッチが作っているので、それを読めばキーは要らない。
 
-import type { VideoMetadata } from "@/types/video"
+import type { VideoAnalysis, VideoMetadata } from "@/types/video"
 
 export interface SnapshotVideo {
   videoId: string
@@ -75,6 +75,33 @@ export function toVideoMetadata(video: SnapshotVideo, display: string): VideoMet
     publishedAt: video.publishedAt,
     thumbnailUrl: video.thumbnail ?? "/placeholder.svg",
     channelTitle: display,
+    character: display,
+    isAvailable: video.available,
+    tags: video.tags,
+    tagSource: "snapshot",
+  }
+}
+
+/**
+ * 一覧テーブルが期待する VideoAnalysis 形へ変換する。
+ *
+ * テーブルの行は CSV 由来の VideoAnalysis 専用に書かれており、
+ * dailyMetrics や details が無いオブジェクトを渡すと落ちる。
+ * 動画マスタには日次の再生数が無いので、その部分は空で埋める。
+ * 再生数は CSV をアップロードしたときに上書きされる
+ * （将来は BigQuery 由来の data/stats.json が入る）。
+ */
+export function toVideoAnalysis(video: SnapshotVideo, display: string): VideoAnalysis {
+  return {
+    videoId: video.videoId,
+    videoURL: `https://www.youtube.com/watch?v=${video.videoId}`,
+    dailyMetrics: {},
+    differences: [],
+    accelerations: [],
+    latestViewDiffChange: null,
+    latestLikeDiffChange: null,
+    rank: 0,
+    details: toVideoMetadata(video, display),
     character: display,
     isAvailable: video.available,
     tags: video.tags,

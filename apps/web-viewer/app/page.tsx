@@ -32,6 +32,7 @@ import {
   displayNames as buildDisplayNames,
   filenamePrefixMap,
   toVideoMetadata,
+  toVideoAnalysis,
   isStale as isSnapshotStale,
 } from "@/lib/snapshot"
 
@@ -948,9 +949,10 @@ export default function CSVUploader() {
     // 未視聴チェックが使えるのはこのため。
     if (snapshot) {
       for (const video of snapshot.videos) {
+        // テーブルの行は VideoAnalysis 形を前提にしているのでその形で入れる
         combinedVideos.set(
           video.videoId,
-          toVideoMetadata(video, channelDisplay[video.channel] ?? video.channel),
+          toVideoAnalysis(video, channelDisplay[video.channel] ?? video.channel),
         )
       }
     }

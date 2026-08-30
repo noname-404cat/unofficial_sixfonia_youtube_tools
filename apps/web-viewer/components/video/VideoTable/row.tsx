@@ -26,15 +26,19 @@ export const VideoTableRow = memo<VideoTableRowProps>(function VideoTableRow({
   watchCount,
   isFocused = false,
 }) {
+  // 日次の再生数はCSV由来の行にしか無い。動画マスタや動画ID一覧から来た行は
+  // dailyMetrics を持たないので、空オブジェクトとして扱う。
+  const dailyMetrics = video.dailyMetrics ?? {}
+
   // 最新の視聴回数を取得（メモ化）
   const latestViewCount = useMemo(() => {
-    const days = Object.keys(video.dailyMetrics).sort()
-    return days.length > 0 ? video.dailyMetrics[days[days.length - 1]].viewCount : 0
-  }, [video.dailyMetrics])
+    const days = Object.keys(dailyMetrics).sort()
+    return days.length > 0 ? dailyMetrics[days[days.length - 1]].viewCount : 0
+  }, [dailyMetrics])
 
   // 日別の視聴回数を取得する関数（メモ化）
   const getDailyViewCount = useMemo(() => {
-    const days = Object.keys(video.dailyMetrics).sort((a, b) => {
+    const days = Object.keys(dailyMetrics).sort((a, b) => {
       const numA = Number(a.replace("day", ""))
       const numB = Number(b.replace("day", ""))
       return numA - numB
@@ -43,7 +47,7 @@ export const VideoTableRow = memo<VideoTableRowProps>(function VideoTableRow({
     return (dayLabel: string): number | null => {
       const dayIndex = days.indexOf(dayLabel)
 
-      if (dayIndex < 0 || !video.dailyMetrics[dayLabel]) {
+      if (dayIndex < 0 || !dailyMetrics[dayLabel]) {
         return null
       }
 
@@ -52,9 +56,9 @@ export const VideoTableRow = memo<VideoTableRowProps>(function VideoTableRow({
       }
 
       const prevDay = days[dayIndex - 1]
-      return video.dailyMetrics[dayLabel].viewCount - video.dailyMetrics[prevDay].viewCount
+      return dailyMetrics[dayLabel].viewCount - dailyMetrics[prevDay].viewCount
     }
-  }, [video.dailyMetrics])
+  }, [dailyMetrics])
 
   // ランクバッジのバリアント（メモ化）
   const rankBadgeVariant = useMemo(() => (rank <= 3 ? "default" : "outline"), [rank])

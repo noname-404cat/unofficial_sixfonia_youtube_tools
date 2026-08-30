@@ -105,14 +105,14 @@ export function removeHashFromTag(tag: string): string {
 
 // 最新の視聴回数を取得
 export function getLatestViewCount(video: VideoAnalysis): number {
-  const days = Object.keys(video.dailyMetrics).sort()
-  return days.length > 0 ? video.dailyMetrics[days[days.length - 1]].viewCount : 0
+  const days = Object.keys(video.dailyMetrics ?? {}).sort()
+  return days.length > 0 ? video.dailyMetrics?.[days[days.length - 1]]?.viewCount ?? 0 : 0
 }
 
 // 日別の視聴回数を取得（累積ではなく日別の差分）
 export function getDailyViewCount(video: VideoAnalysis, dayLabel: string): number | null {
   // 日付の昇順に並べ替えられた日付ラベルを取得
-  const days = Object.keys(video.dailyMetrics).sort((a, b) => {
+  const days = Object.keys(video.dailyMetrics ?? {}).sort((a, b) => {
     const numA = Number(a.replace("day", ""))
     const numB = Number(b.replace("day", ""))
     return numA - numB
@@ -121,7 +121,7 @@ export function getDailyViewCount(video: VideoAnalysis, dayLabel: string): numbe
   const dayIndex = days.indexOf(dayLabel)
 
   // 該当する日のデータがない場合はnullを返す
-  if (dayIndex < 0 || !video.dailyMetrics[dayLabel]) {
+  if (dayIndex < 0 || !video.dailyMetrics?.[dayLabel]) {
     return null
   }
 
@@ -132,7 +132,7 @@ export function getDailyViewCount(video: VideoAnalysis, dayLabel: string): numbe
 
   // 前日との差分を返す
   const prevDay = days[dayIndex - 1]
-  return video.dailyMetrics[dayLabel].viewCount - video.dailyMetrics[prevDay].viewCount
+  return (video.dailyMetrics?.[dayLabel]?.viewCount ?? 0) - (video.dailyMetrics?.[prevDay]?.viewCount ?? 0)
 }
 
 // 数値フォーマット関数
