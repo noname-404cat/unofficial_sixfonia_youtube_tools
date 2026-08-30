@@ -75,22 +75,19 @@ cd apps/web-arrivals && pnpm install && pnpm dev
 
 ## デプロイ
 
-### Vercel（A・B）
+手順は [docs/DEPLOY.md](docs/DEPLOY.md)。要点だけ。
 
-1リポジトリから **2プロジェクト**を作る。Project Settings → General → **Root Directory** を
-それぞれ `apps/web-arrivals` / `apps/web-viewer` に設定するだけでよい。
-
-| プロジェクト | Root Directory | 環境変数 |
+| プロジェクト | 置き場所 | 設定 |
 |---|---|---|
-| 新着一覧 | `apps/web-arrivals` | 不要（APIを呼ばない） |
-| 未視聴チェック | `apps/web-viewer` | `NEXT_PUBLIC_YOUTUBE_API_KEY` |
+| 新着一覧（A） | Vercel | Root Directory = `apps/web-arrivals`。環境変数は不要 |
+| 未視聴チェック（B） | Vercel | Root Directory = `apps/web-viewer`。`NEXT_PUBLIC_YOUTUBE_API_KEY` が要る |
+| 画像生成（C・D） | Streamlit Cloud | Main file path = `apps/streamlit/app.py`。`SNAPSHOT_URL` は任意 |
 
-### Streamlit Community Cloud（C・D）
+依存ファイル（`requirements.txt` / `packages.txt`）は **リポジトリ直下**に置く。
+Streamlit Community Cloud が直下しか見ないため。
 
-Main file path に `apps/streamlit/app.py` を指定する。
-依存は `apps/streamlit/requirements.txt`、日本語フォントは `apps/streamlit/packages.txt`。
-環境変数 `SNAPSHOT_URL` に新着一覧アプリの `/data/videos.json` を入れると、
-コメントのチャンネル判定が正確になる（未設定でも視聴履歴から推定して動く）。
+**B は公開すると API キーがブラウザに露出する。** 公開するならキーのローテートと
+Google Cloud Console での制限が先。
 
 ## 環境変数
 

@@ -1,0 +1,13 @@
+# Streamlit Community Cloud 用。リポジトリ直下に置く必要がある。
+# ローカル開発は pyproject.toml（pip install -e ".[web]"）でよい。
+#
+# janome は純Pythonでビルド不要なので、どの環境でも確実に入る。
+# nagisa はC拡張のビルドが要るため使わない。
+streamlit>=1.36
+pandas
+numpy
+requests
+Pillow
+pytz
+janome
+wordcloud

@@ -1,0 +1,4 @@
+# Streamlit Community Cloud が apt でインストールするパッケージ。
+# リポジトリ直下に置く必要がある。
+# 日本語フォント。これが無いと生成画像の日本語がすべて □ になる。
+fonts-ipafont-gothic
