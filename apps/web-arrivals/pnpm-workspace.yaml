@@ -1,0 +1,8 @@
+# 依存パッケージの postinstall スクリプトを実行してよいかを個別に決める。
+# ここに載っていないパッケージがスクリプトを持ち込むと install が止まるので、
+# 新しいものが増えたときに必ず気づける。
+allowBuilds:
+  # Next.js の画像最適化に使うネイティブライブラリ。
+  # next.config.mjs で images.unoptimized: true にしており使わないため、
+  # ビルドスクリプトは実行しない。
+  sharp: false
