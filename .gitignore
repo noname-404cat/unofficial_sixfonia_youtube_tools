@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+
+# 環境変数（実キーは絶対にコミットしない）
+.env
+.env.*
+!.env.example
+
+# Node / Next.js（各アプリにも .gitignore あり）
+node_modules/
+.next/
+out/
+.vercel/
+*.tsbuildinfo
+
+# エディタ・OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# 個人データ（Takeout は絶対に置かない）
+Takeout/
+watch-history.json
+comments*.csv
+live*chats*.csv
+!tests/fixtures/comments.sample.csv

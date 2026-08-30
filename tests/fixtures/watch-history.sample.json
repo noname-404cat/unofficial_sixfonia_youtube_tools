@@ -1,0 +1,73 @@
+[{
+  "header": "YouTube",
+  "title": "Watched 【テスト】通常の視聴エントリ",
+  "titleUrl": "https://www.youtube.com/watch?v=vidAAAAAAAA",
+  "subtitles": [{ "name": "暇72", "url": "https://www.youtube.com/channel/UCr24Ll7IT2hPquu-n11dNWQ" }],
+  "time": "2026-07-10T14:11:02.510Z",
+  "products": ["YouTube"],
+  "activityControls": ["YouTube watch history"]
+},{
+  "header": "YouTube",
+  "title": "Watched 【テスト】通常の視聴エントリ",
+  "titleUrl": "https://www.youtube.com/watch?v=vidAAAAAAAA",
+  "subtitles": [{ "name": "暇72", "url": "https://www.youtube.com/channel/UCr24Ll7IT2hPquu-n11dNWQ" }],
+  "time": "2026-07-09T03:00:00.000Z",
+  "products": ["YouTube"]
+},{
+  "header": "YouTube",
+  "title": "【テスト】日本語ロケールのエントリ を視聴しました",
+  "titleUrl": "https://www.youtube.com/watch?v=vidBBBBBBBB",
+  "subtitles": [{ "name": "雨乃こさめ【シクフォニ】", "url": "https://www.youtube.com/channel/UC1FByWnYWrAWcCmijBURkfg" }],
+  "time": "2026-06-01T10:00:00.000Z",
+  "products": ["YouTube"]
+},{
+  "header": "YouTube",
+  "title": "Viewed 【テスト】コミュニティ投稿の本文がまるごとタイトルに入る。改行や長文も含まれるため、残すと語彙にも順位にも影響する。",
+  "titleUrl": "https://www.youtube.com/post/UgkxTESTTESTTESTTESTTESTTEST",
+  "time": "2026-06-02T10:00:00.000Z",
+  "products": ["YouTube"]
+},{
+  "header": "YouTube",
+  "title": "Viewed 【テスト】titleUrl を持たないエントリ",
+  "time": "2026-06-03T10:00:00.000Z",
+  "products": ["YouTube"]
+},{
+  "header": "YouTube Music",
+  "title": "Watched 【テスト】YouTube Music 経由の再生",
+  "titleUrl": "https://www.youtube.com/watch?v=vidCCCCCCCC",
+  "subtitles": [{ "name": "暇72", "url": "https://www.youtube.com/channel/UCr24Ll7IT2hPquu-n11dNWQ" }],
+  "time": "2026-06-04T10:00:00.000Z",
+  "products": ["YouTube"]
+},{
+  "header": "YouTube",
+  "title": "Watched https://www.youtube.com/watch?v=vidDDDDDDDD",
+  "titleUrl": "https://www.youtube.com/watch?v=vidDDDDDDDD",
+  "time": "2026-06-05T10:00:00.000Z",
+  "products": ["YouTube"]
+},{
+  "header": "YouTube",
+  "title": "Watched 【テスト】youtu.be 形式のURL",
+  "titleUrl": "https://youtu.be/vidEEEEEEEE",
+  "subtitles": [{ "name": "雨乃こさめ【シクフォニ】", "url": "https://www.youtube.com/channel/UC1FByWnYWrAWcCmijBURkfg" }],
+  "time": "2026-06-06T10:00:00.000Z",
+  "products": ["YouTube"]
+},{
+  "header": "YouTube",
+  "title": "Watched 【テスト】shorts 形式のURL",
+  "titleUrl": "https://www.youtube.com/shorts/vidFFFFFFFF",
+  "subtitles": [{ "name": "暇72", "url": "https://www.youtube.com/channel/UCr24Ll7IT2hPquu-n11dNWQ" }],
+  "time": "2026-06-07T10:00:00.000Z",
+  "products": ["YouTube"]
+},{
+  "header": "YouTube",
+  "title": "Watched 【テスト】v= の後ろにパラメータが続くURL",
+  "titleUrl": "https://www.youtube.com/watch?v=vidGGGGGGGG&t=120s&pp=ABCDEFG",
+  "subtitles": [{ "name": "暇72", "url": "https://www.youtube.com/channel/UCr24Ll7IT2hPquu-n11dNWQ" }],
+  "time": "2026-06-08T10:00:00.000Z",
+  "products": ["YouTube"]
+},{
+  "header": "YouTube",
+  "title": "Watched 【テスト】time を持たないエントリ",
+  "titleUrl": "https://www.youtube.com/watch?v=vidHHHHHHHH",
+  "products": ["YouTube"]
+}]

@@ -1,0 +1,41 @@
+{
+  "updated_at": "1970-01-01T09:00:00+09:00",
+  "channels": [
+    {
+      "name": "hima72",
+      "display": "暇72",
+      "channelId": "UCr24Ll7IT2hPquu-n11dNWQ"
+    },
+    {
+      "name": "sixfonia",
+      "display": "シクフォニ",
+      "channelId": "UCGMG8BNfA8gsH9Rn_d_yW2A"
+    },
+    {
+      "name": "kosame",
+      "display": "雨乃こさめ",
+      "channelId": "UC1FByWnYWrAWcCmijBURkfg"
+    },
+    {
+      "name": "illuma",
+      "display": "いるま",
+      "channelId": "UCs7eh4DZC6HXiizJXLj3_FA"
+    },
+    {
+      "name": "mikoto",
+      "display": "みこと",
+      "channelId": "UCxP9lRliG6xyAbx8Dp3OR1w"
+    },
+    {
+      "name": "suchi",
+      "display": "すち",
+      "channelId": "UCB8DR-ao7ZfoAwoYRXE3VJw"
+    },
+    {
+      "name": "lan",
+      "display": "LAN",
+      "channelId": "UCEqBb37k-pKRQPG-_MvtAeA"
+    }
+  ],
+  "videos": []
+}

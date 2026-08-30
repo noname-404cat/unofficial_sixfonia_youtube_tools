@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sixfonia-youtube-tools"
+version = "0.1.0"
+description = "Unofficial SIXFONIA YouTube tools: video snapshot, Takeout parsers and image generation"
+requires-python = ">=3.10"
+dependencies = [
+    "pandas",
+    "numpy",
+    "google-api-python-client",
+    "requests",
+    "Pillow",
+    "pytz",
+]
+
+[project.optional-dependencies]
+# Streamlit アプリ（apps/streamlit）。janome は純Pythonでビルド不要なため
+# Streamlit Community Cloud でも確実に入る（nagisa はC拡張のビルドが要る）。
+web = ["streamlit", "janome", "wordcloud"]
+dev = ["pytest"]
+
+[tool.setuptools]
+packages = ["sixfonia_analytics"]

@@ -1,0 +1,10 @@
+# Streamlit Community Cloud はリポジトリ直下か指定パスの requirements.txt を見る。
+# janome は純Pythonなのでビルド不要。nagisa はC拡張のビルドが要るため使わない。
+streamlit>=1.36
+pandas
+numpy
+requests
+Pillow
+pytz
+janome
+wordcloud

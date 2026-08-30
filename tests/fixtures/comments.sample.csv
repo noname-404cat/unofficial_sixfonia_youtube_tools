@@ -1,0 +1,6 @@
+Comment ID,Channel ID,Comment Create Timestamp,Price,Currency code,Super Thanks Identifier,Parent Comment ID,Post ID,Video ID,Comment Text,Price Tier ID,Top-Level Comment ID
+UgTESTcomment0001,UCSELFSELFSELFSELFSELF,2026-07-09T14:11:12.969972+00:00,0,,,,,vidAAAAAAAA,"{""text"":""この動画、何度見ても笑えてとても好き""}",,
+UgTESTcomment0002,UCSELFSELFSELFSELFSELF,2026-07-09T17:23:45.299234+00:00,0,,,,,vidBBBBBBBB,"{""text"":""7:47"",""videoLink"":{""externalVideoId"":""vidBBBBBBBB"",""startTimeSeconds"":467}},{""text"":""\n""},{""text"":""おいしい""}",,
+UgTESTcomment0001,UCSELFSELFSELFSELFSELF,2026-07-09T14:11:12.969972+00:00,0,,,,,vidAAAAAAAA,"{""text"":""この動画、何度見ても笑えてとても好き""}",,
+UgTESTcomment0003,UCSELFSELFSELFSELFSELF,2026-05-01T09:00:00.000000+00:00,200000000,JPY,GPY.0000-0000-0000-00000,UgTESTcomment0001,,vidAAAAAAAA,"{""text"":""ありがとうございます""}",super_vod_item_2_usd,UgTESTcomment0001
+UgTESTcomment0004,UCSELFSELFSELFSELFSELF,2026-04-01T09:00:00.000000+00:00,0,,,,UgkxTESTPOST,,"{""text"":""コミュニティ投稿へのコメント""}",,
