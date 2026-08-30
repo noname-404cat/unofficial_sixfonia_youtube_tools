@@ -22,7 +22,7 @@ export function useWatchHistory() {
   }, [])
 
   const processFile = useCallback(
-    async (videoAnalysis: any[]) => {
+    async (knownVideoIds: Set<string>) => {
       if (!watchHistoryFile) {
         setError("JSONファイルを選択してください")
         return
@@ -50,11 +50,12 @@ export function useWatchHistory() {
         console.log(`Processing ${watchHistory.length} watch history entries`)
 
         const { watchedIds, watchCounts, firstAt, lastAt } = extractWatchedVideoIds(watchHistory)
+        // 母集団に含まれる videoId がいくつ視聴済みかを数える。
+        // 以前は配列の some() で毎回走査していたため、
+        // 数千件どうしの突合で重かった。Set で引く。
         let matchedCount = 0
-        if (videoAnalysis) {
-          matchedCount = Array.from(watchedIds).filter((id) =>
-            videoAnalysis.some((video) => video.videoId === id),
-          ).length
+        for (const id of watchedIds) {
+          if (knownVideoIds.has(id)) matchedCount++
         }
 
         if (watchedIds.size === 0) {

@@ -159,6 +159,15 @@ export default function CSVUploader() {
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc")
 
   // チャンネルの選択肢。CSVが無くても動画マスタから作れるようにする。
+  // 視聴履歴と突き合わせる母集団の videoId 集合
+  const knownVideoIds = useMemo(() => {
+    const ids = new Set<string>()
+    if (snapshot) for (const v of snapshot.videos) ids.add(v.videoId)
+    for (const v of videoAnalysis) ids.add(v.videoId)
+    for (const v of videoIdListMetadata) ids.add(v.videoId)
+    return ids
+  }, [snapshot, videoAnalysis, videoIdListMetadata])
+
   const characterOptions = useMemo(() => {
     const fromSnapshot = snapshot ? snapshot.channels.map((c) => c.display) : []
     return Array.from(new Set([...fromSnapshot, ...availableCharacters]))
@@ -1105,18 +1114,15 @@ export default function CSVUploader() {
 
   // 未視聴動画の数を計算
   const getUnwatchedCount = () => {
-    let totalCount = 0
+    // 母集団は統合リスト（動画マスタ ∪ CSV ∪ 動画ID一覧）。
+    // 以前は allVideoIds（CSV/動画ID一覧の取り込み時にだけ埋まる Set）を
+    // 見ていたため、動画マスタだけの状態では常に0件になっていた。
+    const universe = getCombinedVideoList()
     let unwatchedCount = 0
-
-    // 全ての動画IDを集計
-    allVideoIds.forEach((videoId) => {
-      totalCount++
-      if (!watchedVideoIds.has(videoId)) {
-        unwatchedCount++
-      }
-    })
-
-    return { totalCount, unwatchedCount }
+    for (const video of universe) {
+      if (!watchedVideoIds.has(video.videoId)) unwatchedCount++
+    }
+    return { totalCount: universe.length, unwatchedCount }
   }
 
   // 動画の視聴回数を取得する関数
@@ -1135,7 +1141,10 @@ export default function CSVUploader() {
   }, [snapshot])
 
   const sortedVideoIdList = useMemo(() => {
-    let list = getWatchStatusFilteredVideoIdList()
+    // 統合リスト（動画マスタ ∪ CSV ∪ 動画ID一覧）を使う。
+    // 以前は動画ID一覧タブ専用のリストを見ていたため、
+    // そのタブを使わない限り未視聴一覧が常に空になっていた。
+    let list = getWatchStatusFilteredCombinedList()
 
     if (shortsFilter !== "all") {
       const wantShorts = shortsFilter === "shorts"
@@ -1241,6 +1250,7 @@ export default function CSVUploader() {
           <AnalysisUploadContainer
             resolveMetadata={fetchVideoDetails}
             prefixes={filenamePrefixes}
+            knownVideoIds={knownVideoIds}
             onAnalysisComplete={({ videoAnalysis, processedData, detectedCharacters }) => {
               setVideoAnalysis(videoAnalysis)
               setProcessedData(processedData)

@@ -17,6 +17,8 @@ interface AnalysisUploadContainerProps {
   resolveMetadata: (videoIds: string[]) => Promise<VideoMetadata[]>
   /** CSVファイル名の接頭辞 -> チャンネル表示名 */
   prefixes: Record<string, string>
+  /** 視聴履歴と突き合わせる母集団の videoId */
+  knownVideoIds: Set<string>
   onAnalysisComplete: (data: {
     videoAnalysis: any[]
     processedData: any[]
@@ -33,6 +35,7 @@ interface AnalysisUploadContainerProps {
 export const AnalysisUploadContainer = memo<AnalysisUploadContainerProps>(function AnalysisUploadContainer({
   resolveMetadata,
   prefixes,
+  knownVideoIds,
   onAnalysisComplete,
   onWatchHistoryComplete,
 }) {
@@ -56,7 +59,7 @@ export const AnalysisUploadContainer = memo<AnalysisUploadContainerProps>(functi
 
   const handleWatchHistoryProcess = async () => {
     try {
-      const summary = await watchHistory.processFile(csvAnalysis.videoAnalysis)
+      const summary = await watchHistory.processFile(knownVideoIds)
       if (summary) {
         onWatchHistoryComplete(summary)
       }
