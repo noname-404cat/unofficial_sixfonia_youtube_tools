@@ -29,7 +29,7 @@ apps/
   streamlit/            C+D: 画像生成（Streamlit）
 .github/workflows/
   update_snapshot.yml   動画マスタの日次更新
-tests/                  57件。匿名フィクスチャで実データの挙動を固定
+tests/                  62件。匿名フィクスチャで実データの挙動を固定
 ```
 
 ## 動画マスタのスナップショット
@@ -68,10 +68,17 @@ streamlit run apps/streamlit/app.py
 ### Next.js アプリ
 
 ```bash
-cd apps/web-arrivals && pnpm install && pnpm dev
+cd apps/web-arrivals && pnpm install && pnpm dev   # 新着一覧
+cd apps/web-viewer  && pnpm install && pnpm dev    # 未視聴チェック
 ```
 
-`apps/web-viewer` は `.env.example` を `.env.local` にコピーしてキーを入れる。
+どちらも環境変数は不要。ただし未視聴チェックをローカルで動かすときは、
+動画マスタの参照先をローカルの新着一覧に向ける必要がある（本番URLには
+ローカルからの CORS 許可が無いため）。
+
+```bash
+echo "NEXT_PUBLIC_SNAPSHOT_BASE=http://localhost:3000" > apps/web-viewer/.env.local
+```
 
 ## デプロイ
 
@@ -80,24 +87,24 @@ cd apps/web-arrivals && pnpm install && pnpm dev
 | プロジェクト | 置き場所 | 設定 |
 |---|---|---|
 | 新着一覧（A） | Vercel | Root Directory = `apps/web-arrivals`。環境変数は不要 |
-| 未視聴チェック（B） | Vercel | Root Directory = `apps/web-viewer`。`NEXT_PUBLIC_YOUTUBE_API_KEY` が要る |
+| 未視聴チェック（B） | Vercel | Root Directory = `apps/web-viewer`。環境変数は不要 |
 | 画像生成（C・D） | Streamlit Cloud | Main file path = `apps/streamlit/app.py`。`SNAPSHOT_URL` は任意 |
 
 依存ファイル（`requirements.txt` / `packages.txt`）は **リポジトリ直下**に置く。
 Streamlit Community Cloud が直下しか見ないため。
 
-**B は公開すると API キーがブラウザに露出する。** 公開するならキーのローテートと
-Google Cloud Console での制限が先。
+**どのアプリも YouTube API キーを使わない。** 動画マスタを読むだけなので、
+環境変数の設定なしで公開できる。
 
 ## 環境変数
 
 | 名前 | 置き場所 | 用途 |
 |---|---|---|
 | `YOUTUBE_API_KEY` | GitHub Actions secrets | スナップショット生成 |
-| `NEXT_PUBLIC_YOUTUBE_API_KEY` | Vercel（web-viewer）/ `.env.local` | 未視聴チェックの動画情報取得 |
-| `SNAPSHOT_URL` | Streamlit Cloud | 動画マスタの取得元 |
+| `SNAPSHOT_URL` | Streamlit Cloud | 動画マスタの取得元（任意） |
+| `NEXT_PUBLIC_SNAPSHOT_BASE` | web-viewer のローカル開発のみ | 動画マスタの参照先。本番では既定値でよい |
 
-**キーはソースに書かない。** `.gitignore` が `.env*` を除外している（`.env.example` のみ追跡）。
+**キーはソースに書かない。** `.gitignore` が `.env*` を除外している。
 
 ## テスト
 
@@ -110,8 +117,9 @@ pytest tests -q
 
 ## 未対応
 
-- `NEXT_PUBLIC_YOUTUBE_API_KEY` はブラウザに配信される。恒久対応はサーバー側 route handler へ寄せること
-- 未視聴チェックの母集団はまだ CSV アップロード依存。スナップショット参照への切替は未着手
+- **再生数**は BigQuery から日次バッチで抽出して配る予定。未実装で、取得口
+  （`apps/web-viewer/lib/view-counts.ts`）だけ用意してある。CSVをアップロードすれば従来どおり使える
+- 旧 API キーのローテートが未実施（どのアプリからも使っていないが、Git履歴に残っている）
 - ワードクラウドはチャンネル別に出すが、語数が足りるのは暇72 と全体のみ
 
 ## 非公式

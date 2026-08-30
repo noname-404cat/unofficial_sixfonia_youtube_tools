@@ -12,6 +12,9 @@ export function useWatchHistory() {
   const [watchCountByVideoId, setWatchCountByVideoId] = useState<Record<string, number>>({})
   const [error, setError] = useState<string | null>(null)
   const [stats, setStats] = useState<{ total: number; matched: number } | null>(null)
+  // 履歴がカバーする期間。Google側の保存期間で古い分は消えるため、
+  // 「未視聴」の但し書きを出すのに使う。
+  const [period, setPeriod] = useState<{ from: string; to: string } | null>(null)
 
   const handleFileChange = useCallback((file: File | null) => {
     setWatchHistoryFile(file)
@@ -46,7 +49,7 @@ export function useWatchHistory() {
 
         console.log(`Processing ${watchHistory.length} watch history entries`)
 
-        const { watchedIds, watchCounts } = extractWatchedVideoIds(watchHistory)
+        const { watchedIds, watchCounts, firstAt, lastAt } = extractWatchedVideoIds(watchHistory)
         let matchedCount = 0
         if (videoAnalysis) {
           matchedCount = Array.from(watchedIds).filter((id) =>
@@ -64,10 +67,19 @@ export function useWatchHistory() {
         setWatchedVideoIds(watchedIds)
         setWatchCountByVideoId(watchCounts)
 
-        setStats({
-          total: watchedIds.size,
-          matched: matchedCount,
-        })
+        const summary = {
+          watchedVideoIds: watchedIds,
+          watchCountByVideoId: watchCounts,
+          stats: { total: watchedIds.size, matched: matchedCount },
+          period: firstAt && lastAt ? { from: firstAt, to: lastAt } : null,
+        }
+        setStats(summary.stats)
+        setPeriod(summary.period)
+
+        // 呼び出し側は await 直後にこの戻り値を使う。
+        // フックのステートは同じクロージャでは更新されていないため、
+        // watchHistory.stats を読むと初回は null のままになる。
+        return summary
       } catch (err) {
         console.error("Watch history processing error:", err)
         setError(
@@ -89,6 +101,7 @@ export function useWatchHistory() {
     watchCountByVideoId,
     error,
     stats,
+    period,
     handleFileChange,
     processFile,
   }

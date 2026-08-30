@@ -75,7 +75,7 @@ unofficial_sixfonia_youtube_tools/
 自リポジトリなら書き込めるので PAT が要らず、コミットが入れば Vercel が自動で再デプロイする。
 Streamlit からは新着一覧アプリが配信する公開URL（`/data/videos.json`）を読む。
 
-A・B はどちらもブラウザから YouTube API を呼ばない構成へ寄せる（B は移行中）。
+**A・B のどちらもブラウザから YouTube API を呼ばない。** そのため API キーは1つも要らない。
 
 ---
 
@@ -86,7 +86,9 @@ A・B はどちらもブラウザから YouTube API を呼ばない構成へ寄�
 | 1 | 動画マスタの取得 | 都度取得をやめ、**毎日夜1回のスナップショット**にする。`search.list`（100 units）を `playlistItems.list`（1 unit）へ置き換え、**700 units/表示 → 約200 units/日** にする |
 | 2 | スナップショットの配置 | 同一リポジトリの `apps/web-arrivals/public/data/videos.json`。PAT が不要になり、公開URLになるので Streamlit 側からも同じものを読める |
 | 3 | Vercel の構成 | 1リポジトリから**2プロジェクト**。Root Directory を `apps/web-arrivals` / `apps/web-viewer` に向けるだけで済む。A を B に統合するより手数が少なく、B の大きな `page.tsx` に触らずに済む |
-| 4 | API キー | ソースから除去し、`.env.local`（gitignore 済み）と Vercel 環境変数に置く。**キーのローテートは未実施**。恒久対応はサーバー側 route handler へ寄せること |
+| 4 | API キー | **全アプリから撤廃済み。** B が API を呼んでいたのは videoId をタイトルやサムネイルに変換するためだけで、動画マスタを読めば不要だった。環境変数も要らない。**旧キーのローテートは未実施** |
+| 4-2 | 動画マスタの項目 | `tags`（タグ絞り込み用）と `available`（削除・非公開の判別）を含める。`videos.list` は呼び出し回数課金なので part を増やしてもクォータは変わらない |
+| 4-3 | 再生数 | スナップショットに**入れない**。毎日全動画で値が変わりリポジトリが膨らむため。BigQuery から日次バッチで抽出し `data/stats.json` として別に配る（未実装。取得口だけ用意済み） |
 | 5 | チャンネルの判定方法 | 視聴履歴の `subtitles` ではなく **`videoId` × 動画マスタの突合**。削除・非公開動画や YouTube Music 経由の再生も正しく拾えるため |
 | 6 | 「未視聴」の定義 | **7チャンネルの全動画**を対象にし、履歴に無いものを未視聴候補とする。履歴の保存期間による不完全さは注記で明示する |
 | 7 | 新着一覧の期間区分 | **昨日 / 今週 / 今月の3区分**。「今日」は作らない — 今日の動画は YouTube ですぐ見られるし、夜のバッチではその日の分をまだ取得できていないため |
@@ -105,11 +107,11 @@ A・B はどちらもブラウザから YouTube API を呼ばない構成へ寄�
 
 | Phase | 内容 | 状態 |
 |---|---|---|
-| **0** | API キーのローテートとソースからの削除 | **削除済み** — `.env.local` と Vercel 環境変数へ移した。**ローテートは未実施**（Google Cloud Console での手作業） |
+| **0** | API キーのローテートとソースからの削除 | **削除済み** — 環境変数からも外し、アプリはキーを一切使わない。**旧キーのローテートは未実施**（Google Cloud Console での手作業） |
 | **1** | スナップショット生成（GitHub Actions）と公開URL | **実装済み** — `sixfonia_analytics/snapshot.py` / `.github/workflows/update_snapshot.yml` |
 | **2** | A: スナップショット参照へ切替、週の定義の統一、日付計算の修正 | **実装済み** — `apps/web-arrivals/lib/snapshot.ts` / `date-utils.ts` |
 | **3** | C: 英語 Takeout 対応、7チャンネル用テーマの追加 | **実装済み** — `apps/streamlit/tiles.py` |
-| **4** | B: 母集団をスナップショットへ、リピート推奨の追加、履歴期間の注記 | 未着手 |
+| **4** | B: 母集団をスナップショットへ、リピート推奨の追加、履歴期間の注記 | **実装済み** — `apps/web-viewer/lib/snapshot.ts` ほか。API 呼び出しとキーを完全に削除 |
 | **5** | D: `comments.csv` 入力の Streamlit タブを新規作成 | **実装済み** — `apps/streamlit/wordclouds.py` |
 
 ### 実装済みの範囲
@@ -121,11 +123,13 @@ A・B はどちらもブラウザから YouTube API を呼ばない構成へ寄�
 | `.github/workflows/update_snapshot.yml` | 日次バッチ。同一リポジトリへコミットするため PAT 不要 |
 | `apps/web-arrivals/lib/snapshot.ts` | スナップショット読み込みと3区分の振り分け。`search.list` 呼び出しを全廃 |
 | `apps/web-arrivals/lib/date-utils.ts` | JST 計算をローカルタイム依存から `getUTC*` 方式へ修正 |
-| `apps/web-viewer/app/page.tsx` | APIキー直書きを環境変数へ |
 | `apps/streamlit/app.py` | 画像生成側アプリ（TOP9タイル / ワードクラウド） |
 | `apps/streamlit/tiles.py` | 旧 `my_9videos_youtube` を関数化し、パースを takeout に委譲 |
 | `apps/streamlit/wordclouds.py` | 旧 Colab のワードクラウドを、コメント入力に作り替え |
-| `tests/` | 57件。匿名フィクスチャで実データの挙動を固定 |
+| `apps/web-viewer/lib/snapshot.ts` | 動画マスタの取得と、既存の VideoMetadata 型への変換 |
+| `apps/web-viewer/lib/view-counts.ts` | 再生数の取得口（BigQuery 由来の `data/stats.json` 待ち。今は空を返す） |
+| `apps/web-viewer/app/page.tsx` | 母集団を動画マスタに変更。`fetchVideoDetails` の API 呼び出しと無限ループを削除 |
+| `tests/` | 62件。匿名フィクスチャで実データの挙動を固定 |
 
 ---
 
@@ -160,7 +164,8 @@ A・B はどちらもブラウザから YouTube API を呼ばない構成へ寄�
 | # | 論点 | 状況 |
 |---|---|---|
 | 1 | 機能D が当初の狙いに届くか | サンプル生成の結果、チャンネル別ワードクラウドの上位語は「このチャンネルの魅力」ではなく**そのとき見た動画の話題**（固有名詞・作品名）に寄った。「魅力を要約する」という当初の狙いに対して、手段を見直すか、狙いを「自分のコメントの記録」に読み替えるかの判断が要る |
-| 2 | API キーのローテート | 旧キーは Git 履歴（v0 由来の元リポジトリ）に残っている。Google Cloud Console で削除・再発行が要る |
+| 2 | API キーのローテート | もうどのアプリからも使っていないが、旧キーは Git 履歴（v0 由来の元リポジトリ）に残っている。Google Cloud Console で削除・再発行が要る |
+| 2-2 | BigQuery からの再生数抽出 | 日次バッチで `data/stats.json` を出す。アプリ側の取得口（`lib/view-counts.ts`）は用意済みで、ファイルが無ければ空を返す |
 | 3 | v0.dev の自動同期 | A・B は v0.dev から自動 push される構成だった。本リポジトリへ移したので、元リポジトリ側の同期は切っておく |
 | 4 | 削除・非公開になった動画 | スナップショット再生成時に静かに消える。「見ようとしたらもう無い」を検知する仕組みは今回のスコープに入れていない |
 

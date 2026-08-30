@@ -85,22 +85,58 @@ export function processCSVData(parsedData: any[], date: string, character?: stri
 }
 
 /**
- * Extract video IDs from watch history
+ * 視聴履歴から動画IDと視聴回数を取り出す。
+ *
+ * - 動画IDは11文字固定で照合する。以前は /[?&]v=([^&]+)/ という緩い形で、
+ *   後続パラメータを巻き込んだIDを拾うことがあった。
+ * - コミュニティ投稿（/post/ 配下）は titleUrl に動画IDが無いので自然に落ちる。
+ *   本文が丸ごと title に入るため、混ざると集計が壊れる。
+ * - 視聴期間も返す。履歴には保存期間があり、それ以前に見た動画は
+ *   「未視聴」に見えてしまうので、画面に但し書きを出すために使う。
  */
-export function extractWatchedVideoIds(watchHistory: any[]) {
+const VIDEO_ID_PATTERNS = [
+  /[?&]v=([A-Za-z0-9_-]{11})/,
+  /youtu\.be\/([A-Za-z0-9_-]{11})/,
+  /\/shorts\/([A-Za-z0-9_-]{11})/,
+  /\/live\/([A-Za-z0-9_-]{11})/,
+]
+
+export function extractVideoId(url: unknown): string | null {
+  if (typeof url !== "string" || !url) return null
+  for (const pattern of VIDEO_ID_PATTERNS) {
+    const m = url.match(pattern)
+    if (m) return m[1]
+  }
+  return null
+}
+
+export interface WatchHistorySummary {
+  watchedIds: Set<string>
+  watchCounts: Record<string, number>
+  /** 履歴がカバーする期間（ISO文字列）。取れなければ null */
+  firstAt: string | null
+  lastAt: string | null
+}
+
+export function extractWatchedVideoIds(watchHistory: any[]): WatchHistorySummary {
   const watchedIds = new Set<string>()
   const watchCounts: Record<string, number> = {}
+  let firstAt: string | null = null
+  let lastAt: string | null = null
 
-  watchHistory.forEach((entry) => {
-    if (entry && entry.titleUrl) {
-      const match = entry.titleUrl.match(/[?&]v=([^&]+)/)
-      if (match && match[1]) {
-        const videoId = match[1]
-        watchedIds.add(videoId)
-        watchCounts[videoId] = (watchCounts[videoId] || 0) + 1
-      }
+  for (const entry of watchHistory ?? []) {
+    const videoId = extractVideoId(entry?.titleUrl)
+    if (!videoId) continue
+
+    watchedIds.add(videoId)
+    watchCounts[videoId] = (watchCounts[videoId] || 0) + 1
+
+    const time = typeof entry?.time === "string" ? entry.time : null
+    if (time) {
+      if (firstAt === null || time < firstAt) firstAt = time
+      if (lastAt === null || time > lastAt) lastAt = time
     }
-  })
+  }
 
-  return { watchedIds, watchCounts }
+  return { watchedIds, watchCounts, firstAt, lastAt }
 }

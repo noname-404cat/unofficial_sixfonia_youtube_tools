@@ -1,13 +1,5 @@
-// キャラクターマッピング
-export const CHARACTER_MAPPING: Record<string, string> = {
-  hima72_: "暇72",
-  illuma_: "いるま",
-  lan_: "LAN",
-  kosame_: "雨乃こさめ",
-  suchi_: "すち",
-  mikoto_: "みこと",
-  sixfonia_: "シクフォニ",
-} as const
+// チャンネル名と表示名の対応は動画マスタ（data/videos.json）が唯一の正。
+// ここに持たせると、チャンネルの増減のたびに複数箇所を直すことになる。
 
 // 視聴回数の範囲を定義
 export const VIEW_COUNT_RANGES = {

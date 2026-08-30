@@ -100,8 +100,38 @@ def parse_duration_seconds(iso_duration: str | None) -> int | None:
     )
 
 
+# タイトル中のハッシュタグ。日本語ハッシュタグも拾う。
+_HASHTAG_RE = re.compile(
+    r"#([0-9A-Za-z_぀-ゟ゠-ヿ一-龯㐀-䶿＀-ﾟ]+)"
+)
+
+
+def merge_tags(api_tags, title: str | None) -> list[str]:
+    """videos.list のタグと、タイトルのハッシュタグをまとめる。
+
+    先頭の # は落とし、出現順を保ったまま重複を除く。
+    """
+    merged: list[str] = []
+    seen: set[str] = set()
+    for tag in list(api_tags or []) + _HASHTAG_RE.findall(title or ""):
+        tag = str(tag).lstrip("#").strip()
+        key = tag.casefold()
+        if tag and key not in seen:
+            seen.add(key)
+            merged.append(tag)
+    return merged
+
+
 def fetch_video_master(youtube, channel_id: str) -> list[dict]:
-    """動画一覧+メタデータ（タイトル・投稿日時JST・動画長・Shorts判定）を返す。"""
+    """動画一覧+メタデータを返す。
+
+    返す項目: video_id / title / published_at(JST) / duration_seconds /
+              is_short / tags / available
+
+    videos.list は1リクエスト1 unit で、取得する part を増やしても変わらない。
+    そのため contentDetails に snippet（タグ）と status（公開状態）を足しても
+    クォータは増えない。
+    """
     playlist_id = get_uploads_playlist_id(youtube, channel_id)
     rows: list[dict] = []
     for it in iter_playlist_items(youtube, playlist_id, part="snippet,contentDetails"):
@@ -116,23 +146,36 @@ def fetch_video_master(youtube, channel_id: str) -> list[dict]:
             "published_at": published_jst,
         })
 
-    # 動画長は videos.list で50件ずつ取得
+    # 動画長・タグ・公開状態を videos.list で50件ずつ取得
+    details: dict[str, dict] = {}
     ids = [r["video_id"] for r in rows]
-    durations: dict[str, int | None] = {}
     for i in range(0, len(ids), 50):
         res = youtube.videos().list(
-            part="contentDetails", id=",".join(ids[i : i + 50])
+            part="contentDetails,snippet,status", id=",".join(ids[i : i + 50])
         ).execute()
         for item in res.get("items", []):
-            durations[item["id"]] = parse_duration_seconds(
-                item["contentDetails"].get("duration")
-            )
+            snippet = item.get("snippet") or {}
+            status = item.get("status") or {}
+            details[item["id"]] = {
+                "duration_seconds": parse_duration_seconds(
+                    (item.get("contentDetails") or {}).get("duration")
+                ),
+                "tags": merge_tags(snippet.get("tags"), snippet.get("title")),
+                # 非公開・削除された動画は一覧に残ることがあるので印を付ける
+                "available": (
+                    status.get("privacyStatus") != "private"
+                    and status.get("uploadStatus") not in ("deleted", "failed")
+                ),
+            }
         time.sleep(0.1)
 
     for r in rows:
-        secs = durations.get(r["video_id"])
+        d = details.get(r["video_id"], {})
+        secs = d.get("duration_seconds")
         r["duration_seconds"] = secs
         r["is_short"] = (secs is not None and secs <= 60)
+        r["tags"] = d.get("tags", [])
+        r["available"] = d.get("available", True)
     return rows
 
 

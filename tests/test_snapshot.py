@@ -41,20 +41,31 @@ class _PlaylistItems:
 
 
 class _Videos:
-    def __init__(self, durations):
-        self._durations = durations
+    """videos.list のダミー。contentDetails / snippet / status を返す。"""
+
+    def __init__(self, details):
+        self._details = details
 
     def list(self, part, id, **kwargs):
-        return _Request({"items": [
-            {"id": vid, "contentDetails": {"duration": self._durations.get(vid, "PT1M")}}
-            for vid in id.split(",")
-        ]})
+        items = []
+        for vid in id.split(","):
+            d = self._details.get(vid, {})
+            items.append({
+                "id": vid,
+                "contentDetails": {"duration": d.get("duration", "PT1M")},
+                "snippet": {"title": d.get("title", ""), "tags": d.get("tags", [])},
+                "status": {
+                    "privacyStatus": "private" if d.get("private") else "public",
+                    "uploadStatus": "processed",
+                },
+            })
+        return _Request({"items": items})
 
 
 class FakeYouTube:
-    def __init__(self, videos_by_playlist, durations):
+    def __init__(self, videos_by_playlist, details):
         self._playlist_items = _PlaylistItems(videos_by_playlist)
-        self._videos = _Videos(durations)
+        self._videos = _Videos(details)
 
     def channels(self):
         return _Channels()
@@ -89,10 +100,16 @@ def youtube():
                 _item("vidBBBBBBBB", "【テスト】こさめの動画", "2026-08-22T15:00:00Z"),
             ],
         },
-        durations={
-            "vidAAAAAAAA": "PT21M24S",
-            "vidFFFFFFFF": "PT48S",
-            "vidBBBBBBBB": "PT4M2S",
+        details={
+            "vidAAAAAAAA": {
+                "duration": "PT21M24S",
+                "title": "【テスト】長尺 #シクフォニ #テスト",
+                "tags": ["シクフォニ", "歌ってみた"],
+            },
+            "vidFFFFFFFF": {"duration": "PT48S", "title": "【テスト】ショート #shorts"},
+            # 非公開になった動画。一覧には残るが available=False になる
+            "vidBBBBBBBB": {"duration": "PT4M2S", "title": "【テスト】こさめの動画",
+                            "private": True},
         },
     )
 
@@ -126,6 +143,8 @@ def test_video_fields(snap):
         "durationSec": 21 * 60 + 24,
         "isShort": False,
         "thumbnail": "https://img.youtube.com/vi/vidAAAAAAAA/mqdefault.jpg",
+        "tags": ["シクフォニ", "歌ってみた", "テスト"],
+        "available": True,
     }
 
 
@@ -186,3 +205,34 @@ def test_is_stale():
     assert snapshot.is_stale(old) is True
     # しきい値は変えられる
     assert snapshot.is_stale(old, hours=72) is False
+
+
+# ============================================================
+# タグ・公開状態（B のタグ絞り込みと削除バッジのため）
+# ============================================================
+def test_tags_merge_api_and_hashtags(snap):
+    """videos.list のタグとタイトルのハッシュタグを、順序を保って重複なく統合する。"""
+    video = next(v for v in snap["videos"] if v["videoId"] == "vidAAAAAAAA")
+    assert video["tags"] == ["シクフォニ", "歌ってみた", "テスト"]
+
+
+def test_hashtag_only_video_still_gets_tags(snap):
+    """API 側にタグが無くても、タイトルのハッシュタグは拾う。"""
+    video = next(v for v in snap["videos"] if v["videoId"] == "vidFFFFFFFF")
+    assert video["tags"] == ["shorts"]
+
+
+def test_every_video_has_tags_list(snap):
+    """タグが無い動画でも None ではなく空リストにする（呼び出し側の分岐を減らす）。"""
+    assert all(isinstance(v["tags"], list) for v in snap["videos"])
+
+
+def test_available_flag(snap):
+    by_id = {v["videoId"]: v["available"] for v in snap["videos"]}
+    assert by_id["vidBBBBBBBB"] is False  # 非公開
+    assert by_id["vidAAAAAAAA"] is True
+
+
+def test_view_count_is_not_included(snap):
+    """再生数は BigQuery 側から配る。毎日変わる値をここに入れない。"""
+    assert all("viewCount" not in v for v in snap["videos"])

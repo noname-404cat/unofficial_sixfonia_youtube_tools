@@ -19,24 +19,24 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import type { VideoMetadata, VideoStats, ProcessedData, VideoAnalysis, YouTubeVideoResponse } from "@/types/video"
+import type { VideoMetadata, VideoStats, ProcessedData, VideoAnalysis } from "@/types/video"
 import { formatJapaneseDate, formatNumber } from "@/hooks/useVideoData"
 import WatchCountFilter from "@/components/video/WatchCountFilter"
 import { VIEW_COUNT_RANGES } from "@/utils/viewCountUtils"
 import ChannelHome from "@/components/channel/ChannelHome"
 import { VideoPerformanceTableContainer } from "@/components/video/VideoPerformanceTableContainer"
 import { AnalysisUploadContainer } from "@/components/video/AnalysisUploadContainer"
+import { useSnapshot } from "@/hooks/useSnapshot"
+import {
+  videoMap as buildVideoMap,
+  displayNames as buildDisplayNames,
+  filenamePrefixMap,
+  toVideoMetadata,
+  isStale as isSnapshotStale,
+} from "@/lib/snapshot"
 
-// キャラクターマッピング
-const CHARACTER_MAPPING: Record<string, string> = {
-  hima72_: "暇72",
-  illuma_: "いるま",
-  lan_: "LAN",
-  kosame_: "雨乃こさめ",
-  suchi_: "すち",
-  mikoto_: "みこと",
-  sixfonia_: "シクフォニ",
-}
+// チャンネル名と表示名の対応は動画マスタ（スナップショット）を唯一の正とする。
+// 以前はここに直書きしていたため、チャンネルが増減するたびに複数箇所を直す必要があった。
 
 // タグを表示するコンポーネント
 const VideoTags = ({ videoId, tags }: { videoId: string; tags?: string[] }) => {
@@ -97,11 +97,12 @@ export default function CSVUploader() {
   const [activeCharacterTab, setActiveCharacterTab] = useState("all")
   const [availableCharacters, setAvailableCharacters] = useState<string[]>([])
   const [availableTags, setAvailableTags] = useState<string[]>([])
-  // API キーを直接埋め込み
-  // キーはソースに書かない。.env.local / Vercel の環境変数から読む。
-  // NEXT_PUBLIC_ はブラウザに配信されるため、これは暫定措置。
-  // 恒久対応はサーバー側（route handler）へ寄せること。
-  const [apiKey, setApiKey] = useState(process.env.NEXT_PUBLIC_YOUTUBE_API_KEY ?? "")
+  // 動画マスタ。YouTube API は呼ばない（キーは不要）。
+  const { snapshot, isLoading: isLoadingSnapshot, error: snapshotError } = useSnapshot()
+  const snapshotVideos = useMemo(() => (snapshot ? buildVideoMap(snapshot) : new Map()), [snapshot])
+  const channelDisplay = useMemo(() => (snapshot ? buildDisplayNames(snapshot) : {}), [snapshot])
+  const filenamePrefixes = useMemo(() => (snapshot ? filenamePrefixMap(snapshot) : {}), [snapshot])
+  const snapshotIsStale = snapshot ? isSnapshotStale(snapshot.updated_at) : false
 
   // 動画メタデータ関連のステート
   const [videoMetadata, setVideoMetadata] = useState<VideoMetadata[]>([])
@@ -125,6 +126,8 @@ export default function CSVUploader() {
   const [watchedVideoIds, setWatchedVideoIds] = useState<Set<string>>(new Set())
   const [watchHistoryError, setWatchHistoryError] = useState<string | null>(null)
   const [watchHistoryStats, setWatchHistoryStats] = useState<{ total: number; matched: number } | null>(null)
+  // 履歴がカバーする期間。保存期間の制約を画面に出すために持つ。
+  const [watchHistoryPeriod, setWatchHistoryPeriod] = useState<{ from: string; to: string } | null>(null)
   const [watchStatusFilter, setWatchStatusFilter] = useState<"all" | "watched" | "unwatched">("all")
   const [unwatchedVideos, setUnwatchedVideos] = useState<VideoMetadata[]>([])
   // 視聴回数を保存するステートを追加
@@ -146,10 +149,20 @@ export default function CSVUploader() {
 
   // 新しいステートを追加します（他のステート変数の近くに追加）
   const [watchCountFilter, setWatchCountFilter] = useState<string>("all")
+  // Shorts の絞り込み。セクションは分けず、必要なときだけ絞る。
+  const [shortsFilter, setShortsFilter] = useState<"all" | "long" | "shorts">("all")
+  // リピート推奨: 視聴回数の多い順に並べる
+  const [sortByWatchCount, setSortByWatchCount] = useState(false)
 
   // カスタムフックを使用してデータ処理とソートを行う
   const [sortField, setSortField] = useState<string>("latestViewDiffChange")
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc")
+
+  // チャンネルの選択肢。CSVが無くても動画マスタから作れるようにする。
+  const characterOptions = useMemo(() => {
+    const fromSnapshot = snapshot ? snapshot.channels.map((c) => c.display) : []
+    return Array.from(new Set([...fromSnapshot, ...availableCharacters]))
+  }, [snapshot, availableCharacters])
 
   // Memoize filtered videos
   const filteredVideos = useMemo(() => {
@@ -345,7 +358,7 @@ export default function CSVUploader() {
   const extractCharacterFromFilename = (filename: string): string | null => {
     if (!filename) return null
 
-    for (const [prefix, characterName] of Object.entries(CHARACTER_MAPPING)) {
+    for (const [prefix, characterName] of Object.entries(filenamePrefixes)) {
       if (filename.startsWith(prefix)) {
         return characterName
       }
@@ -593,102 +606,27 @@ export default function CSVUploader() {
       .filter((item): item is VideoStats => item !== null)
   }
 
-  // YouTube Data API を使用して動画情報を取得
+  // 動画IDをメタデータへ変換する。
+  //
+  // 以前は videos.list を叩いていたが、そのためだけに API キーをブラウザへ
+  // 配る必要があった。マスタは日次バッチが作っているのでそれを引く。
+  // 旧実装の分割ループには条件が定数（0 < videoIds.length）になった
+  // 無限ループのバグがあり、それもここで消えている。
   const fetchVideoDetails = async (videoIds: string[]): Promise<VideoMetadata[]> => {
-    if (!apiKey) {
-      console.warn("YouTube API キーが設定されていません。動画の詳細情報は取得できません。")
-      // APIキーがない場合は最低限の情報だけで VideoMetadata を作成して返す
-      return videoIds.map((id) => ({
-        videoId: id,
-        title: id, // IDをタイトルとして使用
-        publishedAt: "",
-        thumbnailUrl: "/placeholder.svg",
-      }))
-    }
-
-    // 最大50件ずつに分割
-    const chunks = []
-    for (let i = 0; 0 < videoIds.length; i += 50) {
-      chunks.push(videoIds.slice(i, i + 50))
-    }
-
-    const results: VideoMetadata[] = []
-    const allTags: Set<string> = new Set()
-
-    try {
-      for (const chunk of chunks) {
-        const url = `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,status&id=${chunk.join(
-          ",",
-        )}&key=${apiKey}`
-
-        try {
-          const response = await fetch(url)
-          if (!response.ok) {
-            throw new Error(`YouTube API エラー: ${response.status} ${response.statusText}`)
-          }
-
-          const data: YouTubeVideoResponse = await response.json()
-
-          for (const item of data.items) {
-            const isAvailable =
-              item.status?.privacyStatus !== "private" &&
-              item.status?.uploadStatus !== "deleted" &&
-              item.status?.uploadStatus !== "failed"
-
-            // タグを取得
-            const apiTags = item.snippet.tags || []
-
-            // タイトルとディスクリプションからハッシュタグを抽出
-            const titleHashtags = extractHashtags(item.snippet.title)
-            const descriptionHashtags = extractHashtags(item.snippet.description)
-
-            // すべてのタグを結合して重複を排除
-            const combinedTags = [...new Set([...apiTags, ...titleHashtags, ...descriptionHashtags])]
-
-            // 利用可能なタグを更新
-            combinedTags.forEach((tag) => allTags.add(tag))
-
-            results.push({
-              videoId: item.id,
-              title: item.snippet.title,
-              publishedAt: item.snippet.publishedAt,
-              thumbnailUrl: item.snippet.thumbnails.medium?.url || item.snippet.thumbnails.default?.url,
-              channelTitle: item.snippet.channelTitle,
-              isAvailable: isAvailable,
-              tags: combinedTags,
-              tagSource: "YouTube API + hashtag extraction",
-            })
-          }
-        } catch (error) {
-          console.error("YouTube API エラー:", error)
-          // エラーが発生した場合でも処理を続行し、最低限の情報を返す
-          chunk.forEach((id) => {
-            if (!results.some((item) => item.videoId === id)) {
-              results.push({
-                videoId: id,
-                title: id,
-                publishedAt: "",
-                thumbnailUrl: "/placeholder.svg",
-              })
-            }
-          })
+    return videoIds.map((id) => {
+      const video = snapshotVideos.get(id)
+      if (!video) {
+        // マスタに無い＝対象7チャンネル以外、または取得後に削除された動画
+        return {
+          videoId: id,
+          title: id,
+          publishedAt: "",
+          thumbnailUrl: "/placeholder.svg",
+          isAvailable: false,
         }
       }
-
-      // 利用可能なタグを更新
-      setAvailableTags(Array.from(allTags))
-
-      return results
-    } catch (error) {
-      console.error("YouTube API 処理エラー:", error)
-      // 全体的なエラーが発生した場合は最低限の情報を返す
-      return videoIds.map((id) => ({
-        videoId: id,
-        title: id,
-        publishedAt: "",
-        thumbnailUrl: "/placeholder.svg",
-      }))
-    }
+      return toVideoMetadata(video, channelDisplay[video.channel] ?? video.channel)
+    })
   }
 
   // Replace the entire analyzeVideoData function with this corrected version:
@@ -759,27 +697,11 @@ export default function CSVUploader() {
       let videoDetails: VideoMetadata[] = []
 
       try {
-        if (!apiKey) {
-          console.warn("YouTube API キーが設定されていません。動画の詳細情報は取得できません。")
-          setDetailsError("YouTube API キーが設定されていません。動画の詳細情報なしで分析を続行します。")
-
-          // Create minimal metadata
-          videoDetails = videoIds.map((id) => ({
-            videoId: id,
-            title: id,
-            publishedAt: "",
-            thumbnailUrl: "/placeholder.svg",
-          }))
-        } else {
-          // Fetch details from YouTube API
-          videoDetails = await fetchVideoDetails(videoIds)
-          setAnalysisProgress(80)
-        }
-      } catch (apiError) {
-        console.error("YouTube API エラー:", apiError)
-        setDetailsError(
-          "YouTube APIからの動画情報取得中にエラーが発生しました。APIキーを確認してください。動画の詳細情報なしで分析を続行します。",
-        )
+        videoDetails = await fetchVideoDetails(videoIds)
+        setAnalysisProgress(80)
+      } catch (lookupError) {
+        console.error("動画マスタの参照でエラー:", lookupError)
+        setDetailsError("動画マスタを参照できませんでした。動画の詳細情報なしで分析を続行します。")
 
         // Create minimal metadata on error
         videoDetails = videoIds.map((id) => ({
@@ -1011,10 +933,20 @@ export default function CSVUploader() {
 
   // 統合された動画リストを取得
   const getCombinedVideoList = () => {
-    // パフォーマンス分析と動画ID一覧の両方から動画を取得
     const combinedVideos = new Map<string, VideoMetadata | VideoAnalysis>()
 
-    // パフォーマンス分析からの動画を追加
+    // 動画マスタを既定の母集団にする。CSVをアップロードしなくても
+    // 未視聴チェックが使えるのはこのため。
+    if (snapshot) {
+      for (const video of snapshot.videos) {
+        combinedVideos.set(
+          video.videoId,
+          toVideoMetadata(video, channelDisplay[video.channel] ?? video.channel),
+        )
+      }
+    }
+
+    // パフォーマンス分析からの動画を追加（再生数の差分列が付くので上書きする）
     if (videoAnalysis && videoAnalysis.length > 0) {
       videoAnalysis.forEach((video) => {
         if (video && video.videoId) {
@@ -1195,14 +1127,41 @@ export default function CSVUploader() {
     return watchCountByVideoId[videoId] || 0
   }
 
-  const sortedVideoIdList = getWatchStatusFilteredVideoIdList()
+  // Shorts 絞り込みと「よく見た順」をここでまとめて適用する
+  const shortsById = useMemo(() => {
+    const map: Record<string, boolean> = {}
+    if (snapshot) for (const v of snapshot.videos) map[v.videoId] = v.isShort
+    return map
+  }, [snapshot])
+
+  const sortedVideoIdList = useMemo(() => {
+    let list = getWatchStatusFilteredVideoIdList()
+
+    if (shortsFilter !== "all") {
+      const wantShorts = shortsFilter === "shorts"
+      list = list.filter((v: any) => Boolean(shortsById[v.videoId]) === wantShorts)
+    }
+
+    if (sortByWatchCount) {
+      list = [...list].sort(
+        (a: any, b: any) => (watchCountByVideoId[b.videoId] ?? 0) - (watchCountByVideoId[a.videoId] ?? 0),
+      )
+    }
+    return list
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    videoAnalysis, videoIdListMetadata, snapshot, watchedVideoIds, watchCountByVideoId,
+    watchStatusFilter, watchCountFilter, activeCharacterTab, searchTerm,
+    shortsFilter, sortByWatchCount, shortsById, sortField, sortDirection,
+  ])
   const combinedVideoList = getWatchStatusFilteredCombinedList()
 
   // データの有無を確認する関数
   const hasPerformanceData = videoAnalysis.length > 0
   const hasWatchHistoryData = watchedVideoIds.size > 0
   const hasVideoIdListData = videoIdListMetadata.length > 0
-  const hasCombinedData = hasPerformanceData || hasVideoIdListData
+  // 動画マスタが読めていれば、CSVが無くても一覧は成立する
+  const hasCombinedData = Boolean(snapshot) || hasPerformanceData || hasVideoIdListData
 
   // 未視聴動画の統計
   const unwatchedStats = getUnwatchedCount()
@@ -1244,7 +1203,7 @@ export default function CSVUploader() {
               >
                 すべてのチャンネル
               </Button>
-              {availableCharacters.map((character) => (
+              {characterOptions.map((character) => (
                 <Button
                   key={character}
                   variant={activeCharacterTab === character ? "default" : "outline"}
@@ -1280,17 +1239,19 @@ export default function CSVUploader() {
         {/* 1. 分析情報アップロードタブ */}
         <TabsContent value="performance-analysis">
           <AnalysisUploadContainer
-            apiKey={apiKey}
+            resolveMetadata={fetchVideoDetails}
+            prefixes={filenamePrefixes}
             onAnalysisComplete={({ videoAnalysis, processedData, detectedCharacters }) => {
               setVideoAnalysis(videoAnalysis)
               setProcessedData(processedData)
               setAvailableCharacters((prev) => [...new Set([...prev, ...detectedCharacters])])
               setActiveTab("analysis-results")
             }}
-            onWatchHistoryComplete={({ watchedVideoIds, watchCountByVideoId, stats }) => {
+            onWatchHistoryComplete={({ watchedVideoIds, watchCountByVideoId, stats, period }) => {
               setWatchedVideoIds(watchedVideoIds)
               setWatchCountByVideoId(watchCountByVideoId)
               setWatchHistoryStats(stats)
+              setWatchHistoryPeriod(period ?? null)
               setActiveTab("unwatched-check")
             }}
           />
@@ -1318,7 +1279,7 @@ export default function CSVUploader() {
                 videoAnalysis={videoAnalysis}
                 processedData={processedData}
                 watchCountByVideoId={watchCountByVideoId}
-                availableCharacters={availableCharacters}
+                availableCharacters={characterOptions}
                 availableTags={availableTags}
               />
             </CardContent>
@@ -1396,14 +1357,60 @@ export default function CSVUploader() {
                     </Button>
                   </div>
 
+                  {/* 履歴の保存期間についての但し書き。
+                      Google側の設定で古い分は消えるため、それ以前に見た動画も
+                      「未視聴」に出てしまう。黙って誤解させないよう常時出す。 */}
+                  {watchHistoryPeriod && (
+                    <Alert>
+                      <Info className="h-4 w-4" />
+                      <AlertTitle>未視聴の判定について</AlertTitle>
+                      <AlertDescription>
+                        視聴履歴はGoogle側の保存期間設定により古い分から削除されます。
+                        このファイルの履歴は{" "}
+                        <strong>
+                          {formatJapaneseDate(watchHistoryPeriod.from)} 〜{" "}
+                          {formatJapaneseDate(watchHistoryPeriod.to)}
+                        </strong>{" "}
+                        の範囲です。それ以前に見た動画も「未視聴」に含まれます。
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
                   {/* 視聴回数フィルター */}
                   <WatchCountFilter onFilterChange={setWatchCountFilter} activeFilter={watchCountFilter} />
 
+                  {/* Shorts の絞り込みと並び替え */}
+                  <div className="flex flex-wrap items-center gap-2 my-4">
+                    <div className="mr-2 text-sm font-medium">動画の種類：</div>
+                    {([
+                      ["all", "すべて"],
+                      ["long", "長尺のみ"],
+                      ["shorts", "Shortsのみ"],
+                    ] as const).map(([value, label]) => (
+                      <Button
+                        key={value}
+                        variant={shortsFilter === value ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setShortsFilter(value)}
+                      >
+                        {label}
+                      </Button>
+                    ))}
+                    <Button
+                      variant={sortByWatchCount ? "default" : "outline"}
+                      size="sm"
+                      className="ml-4"
+                      onClick={() => setSortByWatchCount((v) => !v)}
+                    >
+                      🔁 よく見た順
+                    </Button>
+                  </div>
+
                   {/* キャラクタータブ */}
-                  {availableCharacters.length > 0 && (
+                  {characterOptions.length > 0 && (
                     <Tabs value={activeCharacterTab} onValueChange={setActiveCharacterTab} className="w-full">
                       <TabsList className="mb-4 flex flex-wrap">
-                        {availableCharacters.map((character) => (
+                        {characterOptions.map((character) => (
                           <TabsTrigger key={character} value={character} className="mr-1 mb-1">
                             {character}
                           </TabsTrigger>
@@ -1520,10 +1527,10 @@ export default function CSVUploader() {
             </CardHeader>
             <CardContent className="space-y-6">
               {/* キャラクタータブ */}
-              {availableCharacters.length > 0 && (
+              {characterOptions.length > 0 && (
                 <Tabs value={activeCharacterTab} onValueChange={setActiveCharacterTab} className="w-full">
                   <TabsList className="mb-4 flex flex-wrap">
-                    {availableCharacters.map((character) => (
+                    {characterOptions.map((character) => (
                       <TabsTrigger key={character} value={character} className="mr-1 mb-1">
                         {character}
                       </TabsTrigger>

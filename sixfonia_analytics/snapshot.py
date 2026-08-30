@@ -66,6 +66,8 @@ def build_snapshot(youtube, channels: list[str] | None = None) -> dict:
                 "durationSec": r["duration_seconds"],
                 "isShort": r["is_short"],
                 "thumbnail": enrich.thumbnail_url(r["video_id"], THUMBNAIL_QUALITY),
+                "tags": r.get("tags", []),
+                "available": r.get("available", True),
             })
 
     # 投稿日の新しい順。publishedAt が欠けたものは末尾へ。

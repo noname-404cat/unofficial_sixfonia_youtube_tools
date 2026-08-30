@@ -1,12 +1,14 @@
-import { CHARACTER_MAPPING } from "./constants"
-
 /**
- * ファイル名からキャラクター抽出
+ * ファイル名からチャンネルの表示名を取り出す。
+ * 対応表は動画マスタ（スナップショット）から渡す。コードには持たない。
  */
-export const extractCharacterFromFilename = (filename: string): string | null => {
+export const extractCharacterFromFilename = (
+  filename: string,
+  prefixes: Record<string, string>,
+): string | null => {
   if (!filename) return null
 
-  for (const [prefix, characterName] of Object.entries(CHARACTER_MAPPING)) {
+  for (const [prefix, characterName] of Object.entries(prefixes)) {
     if (filename.startsWith(prefix)) {
       return characterName
     }

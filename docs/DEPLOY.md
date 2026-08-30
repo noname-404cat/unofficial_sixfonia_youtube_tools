@@ -1,15 +1,15 @@
 # デプロイ手順
 
-今回公開するのは2つ。どちらも **YouTube API キーを必要としない**。
+**3つとも YouTube API キーを必要としない。** 環境変数の設定も要らない。
 
-| | アプリ | 置き場所 | キー |
-|---|---|---|---|
-| A | 新着一覧 | Vercel | 不要 |
-| C・D | TOP9タイル画像 / ワードクラウド | Streamlit Community Cloud | 不要 |
+| | アプリ | 置き場所 | Root Directory / Main file | 環境変数 |
+|---|---|---|---|---|
+| A | 新着一覧 | Vercel | `apps/web-arrivals` | なし |
+| B | 未視聴チェック | Vercel | `apps/web-viewer` | なし |
+| C・D | TOP9タイル画像 / ワードクラウド | Streamlit Cloud | `apps/streamlit/app.py` | `SNAPSHOT_URL`（任意） |
 
-未視聴チェック（B）は今回デプロイしない。ブラウザ側で YouTube API を叩く作りのため、
-公開するとキーが誰でも見られる状態になる。公開するなら先にキーのローテートと、
-Google Cloud Console での制限（HTTPリファラー制限＋YouTube Data API のみ許可）が要る。
+B は以前ブラウザから YouTube API を叩いていたが、動画マスタを読む形に変えたので
+キーは不要になった。
 
 ---
 
@@ -56,6 +56,26 @@ Vercel が自動で再デプロイする。
 
 ---
 
+## 2-2. Vercel（未視聴チェック）
+
+同じリポジトリからもう1つプロジェクトを作る。
+
+1. [vercel.com/new](https://vercel.com/new) で同じリポジトリを Import
+2. **Root Directory** に `apps/web-viewer` を指定
+3. 環境変数は**不要**
+
+> 動画マスタは新着一覧アプリの `/data/videos.json` を読む。別オリジンになるので、
+> 新着一覧側の `next.config.mjs` で CORS ヘッダーを出している。
+> 参照先を変えたい場合だけ `NEXT_PUBLIC_SNAPSHOT_BASE` を設定する。
+
+### 確認
+
+- **CSVをアップロードせずに**未視聴チェックが使える
+- 視聴履歴を入れると、履歴の期間が但し書きに表示される
+- `googleapis.com` へのリクエストが出ない
+
+---
+
 ## 3. Streamlit Community Cloud（画像生成）
 
 1. [share.streamlit.io](https://share.streamlit.io) で New app
@@ -96,5 +116,7 @@ SNAPSHOT_URL = "https://<プロジェクト名>.vercel.app/data/videos.json"
 
 ## 残っている課題
 
-- **APIキーのローテート**が未実施。旧キーは元の v0 リポジトリの Git 履歴に残っている
-- 未視聴チェック（B）は未デプロイ。公開するならサーバー側（route handler）へ寄せるのが本筋
+- **APIキーのローテート**が未実施。どのアプリからも使っていないが、旧キーは
+  元の v0 リポジトリの Git 履歴に残っている
+- **再生数**は BigQuery から日次バッチで抽出して `data/stats.json` として配る予定。
+  未実装で、アプリ側の取得口だけ用意してある

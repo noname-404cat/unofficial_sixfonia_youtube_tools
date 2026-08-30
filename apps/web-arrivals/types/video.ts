@@ -8,6 +8,11 @@ export interface Video {
   durationSec: number | null
   isShort: boolean
   thumbnail: string | null
+  tags: string[]
+  available: boolean
+  // 再生数は BigQuery 由来の data/stats.json から後で入る（未実装）
+  viewCount?: number
+  viewDiff?: number
 }
 
 export interface ChannelEntry {

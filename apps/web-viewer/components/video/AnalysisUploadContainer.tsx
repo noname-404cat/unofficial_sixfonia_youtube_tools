@@ -10,9 +10,13 @@ import { useWatchHistory } from "@/hooks/useWatchHistory"
 import { FileUpload } from "@/components/common/FileUpload"
 import { ProcessingStatus } from "@/components/common/ProcessingStatus"
 import { CSV_FORMAT_EXAMPLES } from "@/lib/constants"
+import type { VideoMetadata } from "@/types/video"
 
 interface AnalysisUploadContainerProps {
-  apiKey: string
+  /** videoId をメタデータへ変換する。動画マスタから引く */
+  resolveMetadata: (videoIds: string[]) => Promise<VideoMetadata[]>
+  /** CSVファイル名の接頭辞 -> チャンネル表示名 */
+  prefixes: Record<string, string>
   onAnalysisComplete: (data: {
     videoAnalysis: any[]
     processedData: any[]
@@ -22,11 +26,13 @@ interface AnalysisUploadContainerProps {
     watchedVideoIds: Set<string>
     watchCountByVideoId: Record<string, number>
     stats: { total: number; matched: number }
+    period: { from: string; to: string } | null
   }) => void
 }
 
 export const AnalysisUploadContainer = memo<AnalysisUploadContainerProps>(function AnalysisUploadContainer({
-  apiKey,
+  resolveMetadata,
+  prefixes,
   onAnalysisComplete,
   onWatchHistoryComplete,
 }) {
@@ -35,7 +41,7 @@ export const AnalysisUploadContainer = memo<AnalysisUploadContainerProps>(functi
 
   const handleAnalysisProcess = async () => {
     try {
-      const result = await csvAnalysis.processFiles(apiKey)
+      const result = await csvAnalysis.processFiles({ resolveMetadata, prefixes })
       if (result) {
         onAnalysisComplete({
           videoAnalysis: csvAnalysis.videoAnalysis,
@@ -50,13 +56,9 @@ export const AnalysisUploadContainer = memo<AnalysisUploadContainerProps>(functi
 
   const handleWatchHistoryProcess = async () => {
     try {
-      await watchHistory.processFile(csvAnalysis.videoAnalysis)
-      if (watchHistory.stats) {
-        onWatchHistoryComplete({
-          watchedVideoIds: watchHistory.watchedVideoIds,
-          watchCountByVideoId: watchHistory.watchCountByVideoId,
-          stats: watchHistory.stats,
-        })
+      const summary = await watchHistory.processFile(csvAnalysis.videoAnalysis)
+      if (summary) {
+        onWatchHistoryComplete(summary)
       }
     } catch (error) {
       console.error("Watch history processing failed:", error)

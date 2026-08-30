@@ -3,9 +3,20 @@
 import { useState, useCallback } from "react"
 import { createParseWorker } from "@/lib/workerUtils"
 import { calculateDifferences, calculateAccelerations, calculateRankings, processCSVData } from "@/lib/calc"
-import { fetchVideoDetails } from "@/apis/youtube"
 import { extractCharacterFromFilename, extractDateFromFilename } from "@/lib/video-utils"
 import type { VideoAnalysis, ProcessedData, VideoMetadata } from "@/types/video"
+
+/**
+ * CSV分析に必要な外部依存。
+ * 以前は YouTube API キーを受け取って videos.list を叩いていたが、
+ * 動画マスタから引く関数を渡す形にしてキーを不要にした。
+ */
+export interface CsvAnalysisDeps {
+  /** videoId の配列をメタデータへ変換する */
+  resolveMetadata: (videoIds: string[]) => Promise<VideoMetadata[]>
+  /** CSVファイル名の接頭辞 -> チャンネル表示名 */
+  prefixes: Record<string, string>
+}
 
 export function useCsvAnalysis() {
   const [analysisFiles, setAnalysisFiles] = useState<File[]>([])
@@ -24,7 +35,7 @@ export function useCsvAnalysis() {
   }, [])
 
   const processFiles = useCallback(
-    async (apiKey: string) => {
+    async (deps: CsvAnalysisDeps) => {
       if (analysisFiles.length === 0) {
         setError("CSVファイルを選択してください")
         return
@@ -53,7 +64,7 @@ export function useCsvAnalysis() {
           }
           filesByDate[date].push(file)
 
-          const character = extractCharacterFromFilename(file.name)
+          const character = extractCharacterFromFilename(file.name, deps.prefixes)
           if (character) {
             detectedCharacters.add(character)
           }
@@ -88,7 +99,7 @@ export function useCsvAnalysis() {
                 continue
               }
 
-              const character = extractCharacterFromFilename(file.name)
+              const character = extractCharacterFromFilename(file.name, deps.prefixes)
               const processedRows = processCSVData(parsedData, date, character)
               combinedData.push(...processedRows)
 
@@ -119,7 +130,7 @@ export function useCsvAnalysis() {
         setProcessedData(results)
 
         // 動画分析を実行
-        await analyzeVideoData(results, apiKey)
+        await analyzeVideoData(results, deps)
 
         return { detectedCharacters: Array.from(detectedCharacters) }
       } catch (err) {
@@ -138,7 +149,7 @@ export function useCsvAnalysis() {
     [analysisFiles],
   )
 
-  const analyzeVideoData = async (processedData: ProcessedData[], apiKey: string) => {
+  const analyzeVideoData = async (processedData: ProcessedData[], deps: CsvAnalysisDeps) => {
     if (!processedData || processedData.length === 0) {
       console.warn("No processed data to analyze")
       return
@@ -191,13 +202,11 @@ export function useCsvAnalysis() {
       let videoDetails: VideoMetadata[] = []
 
       try {
-        videoDetails = await fetchVideoDetails(videoIds, apiKey)
+        videoDetails = await deps.resolveMetadata(videoIds)
         setProgress(80)
-      } catch (apiError) {
-        console.error("YouTube API エラー:", apiError)
-        setDetailsError(
-          "YouTube APIからの動画情報取得中にエラーが発生しました。APIキーを確認してください。動画の詳細情報なしで分析を続行します。",
-        )
+      } catch (lookupError) {
+        console.error("動画マスタの参照でエラー:", lookupError)
+        setDetailsError("動画マスタを参照できませんでした。動画の詳細情報なしで分析を続行します。")
 
         videoDetails = videoIds.map((id) => ({
           videoId: id,
